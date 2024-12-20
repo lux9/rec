@@ -119,6 +119,41 @@ RSpec.describe "TaxIdentificationNumbers", type: :request do
       expect(parsed_body["tin_type"]).to eq "ca_gst"
     end
 
+    it "returns correct format when testing CA tin with 9 numeric digits" do
+      get validate_tin_path(country_iso: "CA", number: "123456789RT0001 ")
+      parsed_body = JSON.parse(response.body)
+      expect(response).to have_http_status(:ok)
+      expect(parsed_body["formatted_tin"]).to eq "123456789RT0001"
+    end
+
     # India tests
+    it "returns numbers error when testing IN tin with 9 alphanumeric digits" do
+      get validate_tin_path(country_iso: "IN", number: "123A5FD89")
+      parsed_body = JSON.parse(response.body)
+      expect(response).to have_http_status(:ok)
+      expect(parsed_body["errors"]).to include("Number Incorrect length (number should contain 15 digits)")
+    end
+
+    it "returns pattern error when testing IN tin with 9 alphanumeric digits" do
+      get validate_tin_path(country_iso: "IN", number: "123A5FD89")
+      parsed_body = JSON.parse(response.body)
+      expect(response).to have_http_status(:ok)
+      expect(parsed_body["errors"]).to include("Number TIN number must follow this pattern NNXXXXXXXXXXNAN")
+    end
+
+    it "returns correct type when testing IN tin with 15 alphanumeric digits" do
+      get validate_tin_path(country_iso: "IN", number: "  22BCDEF1G2FH1Z5 ")
+      parsed_body = JSON.parse(response.body)
+      expect(response).to have_http_status(:ok)
+      expect(parsed_body["tin_type"]).to eq "in_gst"
+    end
+
+    it "returns correct formmated_tin when testing IN tin with 15 alphanumeric digits" do
+      get validate_tin_path(country_iso: "IN", number: "22Basdf1G2FH1Z5")
+      parsed_body = JSON.parse(response.body)
+      expect(response).to have_http_status(:ok)
+      expect(parsed_body["formatted_tin"]).to eq "22BASDF1G2FH1Z5"
+    end
+
   end
 end
