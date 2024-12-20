@@ -113,6 +113,17 @@ class TaxIdentificationNumber < ApplicationRecord
 
   end
 
+  def business_information
+    doc = Nokogiri::HTML(URI.open("http://localhost:8080/queryABN?abn=#{number}"))
+    name = doc.css("organisationname").inner_text
+    address = { state_code: doc.css("statecode").inner_text, postcode: doc.css("postcode").inner_text }
+    return { name:, address: }
+
+  rescue OpenURI::HTTPError => e
+    return { error: "Could not reach url, error: #{e.message}"}
+
+  end
+
   def to_s
     formatted_number
   end

@@ -19,7 +19,9 @@ class TaxIdentificationNumberController < ApplicationController
     json[:valid] = tin.valid?
     json[:tin_type] = tin.tin_type if tin.valid?
     json[:formatted_tin] = tin.to_s if tin.valid?
+    json[:business_registration] = tin.business_information if tin.valid? && tin.tin_type == "au_abn"
     json[:errors] = tin.errors.full_messages
+
 
     return render json: json
 
