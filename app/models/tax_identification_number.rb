@@ -59,6 +59,10 @@ class TaxIdentificationNumber < ApplicationRecord
     if number.match(/[A-Z]/i)
       errors.add(:number, "TIN number must only contain numeric digits")
     end
+
+    if number.length == 11 && !validate_abn
+      errors.add(:number, "TIN number does not pass ABR validations")
+    end
   end
 
   def check_errors_ca
@@ -83,6 +87,16 @@ class TaxIdentificationNumber < ApplicationRecord
     unless number.match(/^\d{2}.{10}\d\D\d$/i)
       errors.add(:number, "TIN number must follow this pattern NNXXXXXXXXXXNAN")
     end
+  end
+
+  def validate_abn
+    weight_factors = [10, 1, 3, 5, 7, 9, 11, 13, 15, 17, 19]
+    numbers_list = number.chars.map{ |n| n.to_i }
+    numbers_list[0] = numbers_list[0] - 1
+    multiplied_list = []
+    numbers_list.each_with_index {|n, i| multiplied_list << n * weight_factors[i] }
+    return multiplied_list.sum % 89 == 0
+
   end
 
   def to_s
