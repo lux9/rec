@@ -1,3 +1,5 @@
+require 'nokogiri'
+require 'open-uri'
 class TaxIdentificationNumber < ApplicationRecord
   enum :tin_type, %i[au_abn au_acn ca_gst in_gst]
   validates :number, :country_iso, presence: true
@@ -60,8 +62,9 @@ class TaxIdentificationNumber < ApplicationRecord
       errors.add(:number, "TIN number must only contain numeric digits")
     end
 
-    if number.length == 11 && !validate_abn
-      errors.add(:number, "TIN number does not pass ABR validations")
+    if number.length == 11
+      errors.add(:number, "TIN number does not pass ABR validations") if !validate_abn
+      external_validations
     end
   end
 
@@ -96,6 +99,17 @@ class TaxIdentificationNumber < ApplicationRecord
     multiplied_list = []
     numbers_list.each_with_index {|n, i| multiplied_list << n * weight_factors[i] }
     return multiplied_list.sum % 89 == 0
+
+  end
+
+  def external_validations
+    doc = Nokogiri::HTML(URI.open("http://localhost:8080/queryABN?abn=#{number}"))
+    valid = doc.css("goodsandservicestax").inner_text == "true"
+    errors.add(:number, "business is not GST registered") unless valid
+
+  rescue OpenURI::HTTPError => e
+    errors.add(:number, "Error accessing the API, #{e.message}")
+    return
 
   end
 

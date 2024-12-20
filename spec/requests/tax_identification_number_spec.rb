@@ -70,17 +70,17 @@ RSpec.describe "TaxIdentificationNumbers", type: :request do
     end
 
     it "returns correct type when testing AU tin with 11 numeric digits" do
-      get validate_tin_path(country_iso: "AU", number: "51824753556")
+      get validate_tin_path(country_iso: "AU", number: "10120000004")
       parsed_body = JSON.parse(response.body)
       expect(response).to have_http_status(:ok)
       expect(parsed_body["tin_type"]).to eq "au_abn"
     end
 
     it "returns correct formatted tin when testing AU tin with 11 numeric digits" do
-      get validate_tin_path(country_iso: "AU", number: "51824753556")
+      get validate_tin_path(country_iso: "AU", number: "10120000004")
       parsed_body = JSON.parse(response.body)
       expect(response).to have_http_status(:ok)
-      expect(parsed_body["formatted_tin"]).to eq "51 824 753 556"
+      expect(parsed_body["formatted_tin"]).to eq "10 120 000 004"
     end
 
     # Canada tests
