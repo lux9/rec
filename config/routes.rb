@@ -6,6 +6,6 @@ Rails.application.routes.draw do
   get "up" => "rails/health#show", as: :rails_health_check
 
   # Defines the root path route ("/")
-  post "validate_tin" => "tax_identification_number#validate_tin"
+  get "validate_tin" => "tax_identification_number#validate_tin"
 
 end

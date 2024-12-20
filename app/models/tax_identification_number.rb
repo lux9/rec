@@ -44,6 +44,8 @@ class TaxIdentificationNumber < ApplicationRecord
       return "#{number}RT0001"
 
     when "in_gst"
+      return number
+
     end
   end
 
@@ -74,16 +76,13 @@ class TaxIdentificationNumber < ApplicationRecord
   end
 
   def check_errors_in
-    errors = []
-    if number.length != 9 && number.length != 11
-      errors << "Incorrect length (number should contain 9 or 11 digits)"
+    if number.length != 15
+      errors.add(:number, "Incorrect length (number should contain 15 digits)")
     end
 
-    if number.match(/[A-Z]/i)
-      errors << "TIN number must only contain numeric digits"
+    unless number.match(/^\d{2}.{10}\d\D\d$/i)
+      errors.add(:number, "TIN number must follow this pattern NNXXXXXXXXXXNAN")
     end
-    return errors
-
   end
 
   def to_s
