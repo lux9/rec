@@ -13,4 +13,22 @@ class TaxIdentificationNumberController < ApplicationController
 
   private
 
+  def clear_params
+    @country_iso = SanitizeParams.sanitize_country_iso(params[:country_iso])
+    @number = SanitizeParams.sanitize_country_iso(params[:number])
+  end
+
+
+  def check_tin
+    if tin.valid?
+      json = {}
+      json = tin.JSON
+      json[:valid] = true
+      # json[:tin_type] = tin.tin_type
+      # json[:formatted_tin] = tin.to_s
+      json[:business_registration] = TaxIdentificationNumberService.business_information(tin) if tin.tin_type == "au_abn"
+    else
+      json[:errors] = tin.errors.full_messages
+    end
+  end
 end
