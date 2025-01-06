@@ -3,19 +3,34 @@ require 'open-uri'
 class TaxIdentificationNumber < ApplicationRecord
   enum :tin_type, %i[au_abn au_acn ca_gst in_gst]
   validates :number, :country_iso, presence: true
-  validate :check_valid
+  validate :check_country_errors, :check_api_errors, :check_number_errors
+  
+  def countries_supported
+    %w[CA AU IN]
+  end
+
+  def check_support
+    unless countries_supported.include?(@country_iso)
+      errors.add(:country_iso, "TIN number does not match then length")
+    end
+  end
+
+  rules = {
+    au: {default: {tin_type: 1}, {check_sum_errors: true}, {valid_length: [9, 11]}},
+    ca: {default: {tin_type: 2}, {check_sum_errors: false}, {valid_length: [5]}},
+    au: {default: {tin_type: 3}, {check_sum_errors: false}},
+  }
+  
+  # :check_country_errors, :check_api_errors, :check_number_errors a.valid?
+  
+  before_validation :validate_country_errors, :validate_api_errors, :validate_number_errors
+  .valid?
 
   def check_valid
-    case country_iso
-    when "AU"
-      check_errors_au
-    when "CA"
-      check_errors_ca
-    when "IN"
-      check_errors_in
-    else
-      errors.add(:country_iso, "Invalid Country ISO, please check and try again")
-    end
+    check_country_errors
+    check_api_errors
+    check_number_errors
+    external_validations
   end
 
   def process_number
@@ -28,80 +43,43 @@ class TaxIdentificationNumber < ApplicationRecord
     when "IN"
       self.tin_type = 3
     end
-    self.formatted_number = format_number
+    format_number(self)
     return true
 
   end
 
-  def format_number
-    case tin_type
+  def format_number(tax)
+    case tax.tin_type
     when "au_acn"
-      return number.scan(/.../).join(" ")
-
+      e = number.scan(/.../).join(" ")
     when "au_abn"
-      return [number[0..1], number[2..].scan(/.../)].join(" ")
-
+      e = [number[0..1], number[2..].scan(/.../)].join(" ")
     when "ca_gst"
-      return number if number.length == 15
-      return "#{number}RT0001"
-
+      e = number if number.length == 15
+      e = "#{number}RT0001"
     when "in_gst"
-      return number
-
+      e = number
     end
+    self.number = e
   end
 
-  def check_errors_au
+  def check_country_length_errors
     return unless number
 
-    if number.length != 9 && number.length != 11
-      errors.add(:number, "Incorrect length (number should contain 9 or 11 digits)")
+    unless rules[self.country_iso][:valid_length].include? number.length
+      errors.add(:number, "TIN number does not match then length")
     end
 
-    if number.match(/[A-Z]/i)
-      errors.add(:number, "TIN number must only contain numeric digits")
-    end
-
-    if number.length == 11
-      errors.add(:number, "TIN number does not pass ABR validations") if !validate_abn
+    if rules[self.coutry_iso.downcase]["check_sum_error"]
+      errors.add(:number, "TIN number does not pass ABR validations") if !TaxIdentificationNumberSanitizer.validate_abn
       external_validations
-    end
-  end
-
-  def check_errors_ca
-    if number.length != 9 && number.length != 15
-      errors.add(:number, "Incorrect length (number should contain 9 or 15 digits)")
-    end
-
-    if number[0..8].match(/[A-Z]/i)
-      errors.add(:number, "TIN first 9 digits should only contain numeric digits")
-    end
-
-    if number.length == 15 && number[9..] != "RT0001"
-      errors.add(:number, "TIN last digits should be RT0001")
-    end
-  end
-
-  def check_errors_in
-    if number.length != 15
-      errors.add(:number, "Incorrect length (number should contain 15 digits)")
     end
 
     unless number.match(/^\d{2}.{10}\d\D\d$/i)
       errors.add(:number, "TIN number must follow this pattern NNXXXXXXXXXXNAN")
     end
   end
-
-  def validate_abn
-    weight_factors = [10, 1, 3, 5, 7, 9, 11, 13, 15, 17, 19]
-    numbers_list = number.chars.map{ |n| n.to_i }
-    numbers_list[0] = numbers_list[0] - 1
-    multiplied_list = []
-    numbers_list.each_with_index {|n, i| multiplied_list << n * weight_factors[i] }
-    return multiplied_list.sum % 89 == 0
-
-  end
-
+  
   def external_validations
     doc = Nokogiri::HTML(URI.open("http://localhost:8080/queryABN?abn=#{number}"))
     valid = doc.css("goodsandservicestax").inner_text == "true"
@@ -112,20 +90,17 @@ class TaxIdentificationNumber < ApplicationRecord
     return
 
   end
+  
 
-  def business_information
-    doc = Nokogiri::HTML(URI.open("http://localhost:8080/queryABN?abn=#{number}"))
-    name = doc.css("organisationname").inner_text
-    address = { state_code: doc.css("statecode").inner_text, postcode: doc.css("postcode").inner_text }
-    return { name:, address: }
+  def validate_format
+    if number.match(/[A-Z]/i)
+      errors.add(:number, "TIN number must only contain numeric digits")
+    end
 
-  rescue OpenURI::HTTPError => e
-    return { error: "Could not reach url, error: #{e.message}"}
-
+    if number[0..8].match(/[A-Z]/i)
+      errors.add(:number, "TIN first 9 digits should only contain numeric digits")
+    end
   end
 
-  def to_s
-    formatted_number
-  end
 
 end
