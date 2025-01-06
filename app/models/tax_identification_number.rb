@@ -92,6 +92,15 @@ class TaxIdentificationNumber < ApplicationRecord
   end
   
 
+  def validate_format
+    if number.match(/[A-Z]/i)
+      errors.add(:number, "TIN number must only contain numeric digits")
+    end
+
+    if number[0..8].match(/[A-Z]/i)
+      errors.add(:number, "TIN first 9 digits should only contain numeric digits")
+    end
+  end
 
 
 end
